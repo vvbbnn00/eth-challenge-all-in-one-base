@@ -1,4 +1,4 @@
-# eth-challenge-base
+# eth-challenge-all-in-one-base
 
 ![Docker size](https://badgen.net/docker/size/vvbbnn00/eth-challenge-all-in-one-base/beta?color=cyan)
 ![License: MIT](https://badgen.net/github/license/vvbbnn00/eth-challenge-all-in-one-base?color=yellow)
