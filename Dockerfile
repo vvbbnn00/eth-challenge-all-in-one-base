@@ -1,3 +1,5 @@
+FROM --platform=linux/amd64 ethereum/client-go:v1.11.4 as geth
+FROM --platform=linux/amd64 chainflag/eth-faucet:1.1.0 as eth-faucet
 FROM --platform=linux/amd64 python:3.9-slim-buster
 
 WORKDIR /home/ctf
@@ -28,10 +30,10 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # Get geth from the official repo
-COPY --from=ethereum/client-go:v1.11.4 /usr/local/bin/geth /usr/local/bin/
+COPY --from=geth /usr/local/bin/geth /usr/local/bin/
 
 # Get chainflag/eth-faucet:1.1.0 from the official repo
-COPY --from=chainflag/eth-faucet:1.1.0 /app/eth-faucet /usr/local/bin/
+COPY --from=eth-faucet /app/eth-faucet /usr/local/bin/
 
 # geth config
 COPY geth/proxy/eth-jsonrpc-access.js /etc/nginx
