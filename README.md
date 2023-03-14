@@ -12,7 +12,7 @@ An all-in-one web docker for building ethereum contract challenges in capture th
 Use the following command to run a quick demo:
 
 ```bash
-docker run -it -p 20000:80 -e FLAG=slctf{flag} vvbbnn00/eth-challenge-all-in-one:beta
+docker run -it -p 20000:80 -e FLAG=slctf{flag} vvbbnn00/eth-challenge-all-in-one-base:beta
 ```
 
 Then you can access the challenge at `http://localhost:20000/challenge`.
