@@ -1,0 +1,16 @@
+contract: GreeterExp  # Challenge contract name(class name)
+
+# The description will be displayed when players nc to the challenge
+description: |
+  This is another example challenge, which deployed by template docker image.
+
+flag: flag{placeholder}
+
+constructor:
+  args: [ "hello" ]
+  value: 0
+  #gas: 1000000          # The default value is the response value of the eth_estimateGas JSON-RPC
+
+
+show_source: True      # Show source option available by default, you need to set False for a reverse contract challenge
+#solved_event: SendFlag  # The default is to use isSolved() view function as solved checker, but emitted event checker is also supported
