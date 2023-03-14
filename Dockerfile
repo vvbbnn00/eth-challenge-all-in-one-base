@@ -47,8 +47,10 @@ COPY service.py .
 
 # entrypoint
 COPY entrypoint.sh /entrypoint.sh
+COPY eth-faucet.sh /eth-faucet.sh
 RUN mkdir /var/log/ctf
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh && \
+    chmod +x /eth-faucet.sh
 
 ENV PROJECT_ROOT /home/ctf/challenge
 
