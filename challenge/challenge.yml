@@ -4,14 +4,15 @@ contract: Greeter  # Challenge contract name(class name)
 description: |
   We design a pretty easy contract challenge. Enjoy it!
   Your goal is to make isSolved() function returns true!
+  Failed with solidity? Why not try python web3?
 
 flag: flag{placeholder}
 
 constructor:
-  args: ["hello"]
+  args: [ "hello" ]
   value: 0
   #gas: 1000000          # The default value is the response value of the eth_estimateGas JSON-RPC
 
-#show_source: False      # Show source option available by default, you need to set False for a reverse contract challenge
 
+show_source: True      # Show source option available by default, you need to set False for a reverse contract challenge
 #solved_event: SendFlag  # The default is to use isSolved() view function as solved checker, but emitted event checker is also supported

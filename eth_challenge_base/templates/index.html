@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Blockchain Challenge</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css"
+          integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"
+            integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo="
+            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"
+            integrity="sha384-aJ21OjlMXNL5UyIl/XNwTMqvzeRMZH2w8c5cRVpzpU8Y5bApTppSuUkhZXN0VxHd"
+            crossorigin="anonymous"></script>
+</head>
+<body>
+<div style="height: 20px"></div>
+<div class="container">
+    <div class="modal fade" id="modal" tabindex="-1" role="dialog" aria-labelledby="modal">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="modalTitle">Notification</h4>
+                </div>
+                <div class="modal-body" id="modalContent">
+                    ...
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="jumbotron">
+        <h1>Blockchain Challenge</h1>
+        <p>Hi there, The following steps will guide you to start your challenge. Have fun and capture the flag!</p>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-heading panel-title"><b>Challenge Description</b></div>
+        <div class="panel-body">
+            {% if challenge_info.get('solved_event') %}
+                <p><b>Event Required to Emit: </b><code>{{ challenge_info.get('solved_event') }}</code></p>
+            {% endif %}
+            <p><b>Description Text:</b></p>
+            <pre>{{ challenge_info.get('description') }}</pre>
+        </div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-heading panel-title"><b>Step 1: Create Token</b></div>
+        <div class="panel-body">
+            <div class="info">
+                The token is the identifier of your account. You can create a new token or use an existing one.
+            </div>
+            <div style="height: 10px"></div>
+            <div class="input-group">
+                <span class="input-group-addon" id="basic-addon1">Token</span>
+                <input type="text" class="form-control" placeholder="Input Your Token Here"
+                       aria-describedby="basic-addon1" id="token">
+            </div>
+            <div style="height: 10px"></div>
+            <div class="info">
+                <b>No token?</b> Why not create one!
+            </div>
+            <div style="height: 10px"></div>
+            <button type="button" class="btn btn-primary" id="getToken">Get Token</button>
+        </div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-heading panel-title"><b>Step 2: Deploy Contract</b></div>
+        <div class="panel-body">
+            <div class="info">
+                Now that you have a token, you can deploy a contract to the blockchain.<br>
+                Before that, you need to firstly send some ether to your account.<br>
+                Your account address will be shown after you get your token and press the <b>"Get Address"</b> button.
+            </div>
+            <div style="height: 10px"></div>
+            <div class="input-group">
+                <span class="input-group-addon" id="basic-addon1">Account Address</span>
+                <input type="text" class="form-control" placeholder="Your Account Address"
+                       aria-describedby="basic-addon1" id="accountAddr">
+                <span class="input-group-btn">
+                    <button class="btn btn-default" type="button" id="getAddress">Get Address</button>
+                </span>
+            </div>
+            <div style="height: 10px"></div>
+            <div class="info">
+                <b>Not enough ether?</b> <a href="/" target="_blank">Why not get some!</a>
+            </div>
+            <div class="info">
+                When you have enough ether, you can press <b>the following button</b> to deploy your contract.<br>
+                If you have already deployed a contract, you will get the address of the contract when you press the
+                button.
+            </div>
+            <div style="height: 10px"></div>
+            <button type="button" class="btn btn-success" id="deployContract">Deploy Contract</button>
+            <div style="height: 10px"></div>
+            <div class="input-group">
+                <span class="input-group-addon" id="basic-addon1">Contract Address</span>
+                <input type="text" class="form-control" placeholder="Your Contract Address"
+                       aria-describedby="basic-addon1" id="contractAddr">
+            </div>
+        </div>
+    </div>
+
+    {% if source_code %}
+        <div class="panel panel-default">
+            <div class="panel-heading panel-title"><b>Step 3: Check The Source Code</b></div>
+            <div class="panel-body">
+                <div class="info">
+                    You can check the source code of the contract you deployed.<br>
+                </div>
+                <div style="height: 10px"></div>
+                <pre>{{ source_code }}</pre>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="panel panel-default">
+        <div class="panel-heading panel-title"><b>Step {{ 4 if source_code else 3 }}: Capture The Flag</b></div>
+        <div class="panel-body">
+            <div class="info">
+                When you meet the requirements of the challenge, you can capture the flag.<br>
+                Press the button below to check if you have captured the flag.
+            </div>
+            <div style="height: 10px"></div>
+            {% if challenge_info.get('solved_event') %}
+                <p>Input the tx_hash which emits event <code>{{ challenge_info.get('solved_event') }}</code></p>
+                <div class="input-group">
+                    <span class="input-group-addon" id="basic-addon1">Tx Hash</span>
+                    <input type="text" class="form-control"
+                           placeholder="The tx_hash of the transaction which emits the event"
+                           aria-describedby="basic-addon1" id="txHash">
+                </div>
+                <div style="height: 10px"></div>
+            {% endif %}
+            <button type="button" class="btn btn-danger" id="captureTF">Capture The Flag</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    $(function () {
+        $('#getToken').click(function () {
+            $("#getToken").attr("disabled", true);
+            $.ajax({
+                url: '/challenge/create',
+                type: 'POST',
+                success: function (data) {
+                    $("#getToken").attr("disabled", false);
+                    if (data.code === 200) {
+                        $('#token').val(data.token);
+                        $('#accountAddr').val(data.address);
+                    } else {
+                        $('#modalTitle').text('Error');
+                        $('#modalContent').text(data.message);
+                        $('#modal').modal('show');
+                    }
+                },
+                error: function () {
+                    $("#getToken").attr("disabled", false);
+                    $('#modalTitle').text('Error');
+                    $('#modalContent').text('Server Error');
+                    $('#modal').modal('show');
+                }
+            });
+        });
+
+        $('#getAddress').click(function () {
+            var token = $('#token').val();
+            $("#getAddress").attr("disabled", true);
+            $.ajax({
+                url: '/challenge/account',
+                type: 'POST',
+                data: {
+                    token: token
+                },
+                success: function (data) {
+                    $("#getAddress").attr("disabled", false);
+                    if (data.code === 200) {
+                        $('#accountAddr').val(data.address);
+                        $('#contractAddr').val(data.contract);
+                    } else {
+                        $('#modalTitle').text('Error');
+                        $('#modalContent').text(data.message);
+                        $('#modal').modal('show');
+                    }
+                },
+                error: function () {
+                    $("#getAddress").attr("disabled", false);
+                    $('#modalTitle').text('Error');
+                    $('#modalContent').text('Server Error');
+                    $('#modal').modal('show');
+                }
+            });
+        });
+
+        $('#deployContract').click(function () {
+            var token = $('#token').val();
+            $("#deployContract").attr("disabled", true);
+            $.ajax({
+                url: '/challenge/deploy',
+                type: 'POST',
+                data: {
+                    token: token
+                },
+                success: function (data) {
+                    $("#deployContract").attr("disabled", false);
+                    if (data.code === 200) {
+                        $('#contractAddr').val(data.address);
+                        $('#modalTitle').text('Success');
+                        $('#modalContent').text(`Deployed, your contract address is ${data.address}, your tx hash is ${data.tx_hash}`);
+                        $('#modal').modal('show');
+                    } else {
+                        $('#modalTitle').text('Error');
+                        $('#modalContent').text(data.message);
+                        $('#modal').modal('show');
+                    }
+                },
+                error: function () {
+                    $("#deployContract").attr("disabled", false);
+                    $('#modalTitle').text('Error');
+                    $('#modalContent').text('Server Error');
+                    $('#modal').modal('show');
+                }
+            });
+        });
+
+        $('#captureTF').click(function () {
+            var token = $('#token').val();
+            var txHash = $('#txHash').val();
+            $("#captureTF").attr("disabled", true);
+            $.ajax({
+                url: '/challenge/flag',
+                type: 'POST',
+                data: {
+                    token: token,
+                    tx_hash: txHash
+                },
+                success: function (data) {
+                    $("#captureTF").attr("disabled", false);
+                    if (data.code === 200) {
+                        $('#modalTitle').text('Success');
+                        $('#modalContent').text(`Congratulations! Your flag is ${data.flag}`);
+                        $('#modal').modal('show');
+                    } else {
+                        $('#modalTitle').text('Error');
+                        $('#modalContent').text(data.message);
+                        $('#modal').modal('show');
+                    }
+                },
+                error: function () {
+                    $("#captureTF").attr("disabled", false);
+                    $('#modalTitle').text('Error');
+                    $('#modalContent').text('Server Error');
+                    $('#modal').modal('show');
+                }
+            });
+        });
+    });
+</script>
+</body>
+</html>

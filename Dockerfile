@@ -1,36 +1,56 @@
-FROM golang:1.20-buster as protoc
-
-WORKDIR /protobuf-builder
-
-RUN apt update && apt install unzip
-RUN go install github.com/verloop/twirpy/protoc-gen-twirpy@latest
-RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.19.5/protoc-3.19.5-linux-x86_64.zip && unzip protoc-3.19.5-linux-x86_64.zip && cp bin/protoc /bin/protoc
-
-COPY eth_challenge_base/protobuf protobuf
-RUN protoc --python_out=. --twirpy_out=. protobuf/challenge.proto
-
-FROM python:3.9-slim-buster
+FROM --platform=linux/amd64 python:3.9-slim-buster
 
 WORKDIR /home/ctf
 
+# apt change source to ustc
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list \
+    && sed -i 's/security.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
+
+# Install build-essential wget
 RUN apt update \
-    && apt install -y --no-install-recommends build-essential tini xinetd \
+    && apt install -y --no-install-recommends build-essential wget musl-dev gnupg
+
+# add nginx http://nginx.org/packages/mainline/debian/dists/buster/
+RUN echo "deb http://nginx.org/packages/mainline/debian/ buster nginx" >> /etc/apt/sources.list \
+    && echo "deb-src http://nginx.org/packages/mainline/debian/ buster nginx" >> /etc/apt/sources.list \
+    && wget http://nginx.org/keys/nginx_signing.key \
+    && apt-key add nginx_signing.key \
+    && rm nginx_signing.key
+
+# Install build-essential
+RUN apt update \
+    && apt install -y --no-install-recommends nginx nginx-module-njs \
     && apt clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Python dependencies
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-COPY client.py .
-COPY server.py .
-COPY example .
+# Get geth from the official repo
+COPY --from=ethereum/client-go:v1.11.4 /usr/local/bin/geth /usr/local/bin/
+
+# Get chainflag/eth-faucet:1.1.0 from the official repo
+COPY --from=chainflag/eth-faucet:1.1.0 /app/eth-faucet /usr/local/bin/
+
+# geth config
+COPY geth/proxy/eth-jsonrpc-access.js /etc/nginx
+COPY geth/proxy/nginx.conf /etc/nginx
+COPY geth/genesis.json.template /genesis.json.template
+
+# challenge config
+COPY challenge /home/ctf/challenge
 COPY eth_challenge_base eth_challenge_base
-COPY --from=protoc /protobuf-builder/protobuf eth_challenge_base
+COPY service.py .
 
-COPY xinetd.sh /xinetd.sh
+# entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN mkdir /var/log/ctf
 RUN chmod +x /entrypoint.sh
 
-ENTRYPOINT ["tini", "-g", "--"]
+ENV PROJECT_ROOT /home/ctf/challenge
+
+EXPOSE 80
+
+ENTRYPOINT ["sh"]
 CMD ["/entrypoint.sh"]

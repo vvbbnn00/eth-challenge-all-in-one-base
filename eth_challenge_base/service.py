@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import secrets
 from decimal import Decimal
@@ -9,18 +10,17 @@ import pyseto
 from eth_typing import ChecksumAddress
 from eth_utils import units
 from pyseto import Token
-from twirp import ctxkeys, errors
-from twirp.asgi import TwirpASGIApp
-from twirp.exceptions import InvalidArgument, RequiredArgument, TwirpServerException
 
 from eth_challenge_base.config import Config, parse_config
 from eth_challenge_base.ethereum import Account, Contract
-from eth_challenge_base.protobuf import (  # type: ignore[attr-defined]
-    challenge_pb2,
-    challenge_twirp,
-)
+from eth_challenge_base.exceptions import ServiceError
 
 AUTHORIZATION_KEY = "authorization"
+TOKEN_KEY = pyseto.Key.new(
+    version=4,
+    purpose="local",
+    key=os.getenv("TOKEN_SECRET", secrets.token_hex(32)),
+)
 
 
 class ChallengeService:
@@ -32,20 +32,16 @@ class ChallengeService:
             build_json = json.load(fp)
         self._contract: Contract = Contract(build_json["abi"], build_json["bytecode"])
         self._source_code: Dict[str, str] = self._load_challenge_source(artifact_path)
-        self._token_key = pyseto.Key.new(
-            version=4,
-            purpose="local",
-            key=os.getenv("TOKEN_SECRET", secrets.token_hex(32)),
-        )
+        self._token_key = TOKEN_KEY
 
-    def GetChallengeInfo(self, context, empty):
-        return challenge_pb2.Info(
-            description=self._config.description,
-            show_source=self._config.show_source,
-            solved_event=self._config.solved_event,
-        )
+    def GetChallengeInfo(self):
+        return {
+            'description': self._config.description,
+            'show_source': self._config.show_source,
+            'solved_event': self._config.solved_event,
+        }
 
-    def NewPlayground(self, context, empty):
+    def NewPlayground(self):
         account: Account = Account()
         token: str = pyseto.encode(
             self._token_key, payload=account.private_key, footer=self._config.contract
@@ -57,8 +53,8 @@ class ChallengeService:
                 constructor.value, constructor.gas_limit, constructor.args
             )
         except Exception as e:
-            raise TwirpServerException(
-                code=errors.Errors.Internal,
+            raise ServiceError(
+                code=500,
                 message=str(e),
             )
 
@@ -66,21 +62,35 @@ class ChallengeService:
             "0.0005"
         )
 
-        context.get_logger().info("Playground account %s was created", account.address)
-        return challenge_pb2.Playground(
-            address=account.address,
-            token=token,
-            value=float(round(ether_value, 3)),
-        )
+        logging.info("Playground account %s was created", account.address)
+        return {
+            'address': account.address,
+            'token': token,
+            'value': float(round(ether_value, 3)),
+        }
 
-    def DeployContract(self, context, empty):
+    def GetAccount(self, context):
+        account: Account = self._recoverAcctFromCtx(context)
+        contract_addr: str = account.get_deployment_address()
+        return {
+            'address': account.address,
+            'contract': contract_addr if account.nonce > 0 else None,
+        }
+
+    def DeployContract(self, context):
         account: Account = self._recoverAcctFromCtx(context)
         if account.balance == 0:
-            raise TwirpServerException(
-                code=errors.Errors.FailedPrecondition,
-                message=f"send test ether to {account.address} first",
+            raise ServiceError(
+                code=400,
+                message=f"It seems that you haven't "
+                        f"send test ether to {account.address}, "
+                        f"please send some first",
             )
-
+        if account.nonce > 0:
+            raise ServiceError(
+                code=400,
+                message="Challenge contract has already been deployed",
+            )
         contract_addr: str = account.get_deployment_address()
         try:
             constructor = self._config.constructor
@@ -88,75 +98,82 @@ class ChallengeService:
                 account, constructor.value, constructor.gas_limit, constructor.args
             )
         except Exception as e:
-            raise TwirpServerException(
-                code=errors.Errors.Internal,
+            raise ServiceError(
+                code=500,
                 message=str(e),
             )
 
-        context.get_logger().info(
+        logging.info(
             "Contract %s was deployed by %s. Transaction hash %s",
             contract_addr,
             account.address,
             tx_hash,
         )
-        return challenge_pb2.Contract(address=contract_addr, tx_hash=tx_hash)
+        return {
+            'address': contract_addr,
+            'tx_hash': tx_hash,
+        }
 
-    def GetFlag(self, context, event):
+    def GetFlag(self, context):
         account: Account = self._recoverAcctFromCtx(context)
         nonce: int = account.nonce
         if nonce == 0:
-            raise TwirpServerException(
-                code=errors.Errors.FailedPrecondition,
-                message="challenge contract has not yet been deployed",
+            raise ServiceError(
+                code=400,
+                message="Challenge contract has not yet been deployed",
             )
         contract_addr: ChecksumAddress = account.get_deployment_address(nonce - 1)
 
         if self._config.solved_event:
-            if not event.HasField("tx_hash"):
-                raise RequiredArgument(argument="tx_hash")
-            tx_hash = event.tx_hash.strip()
+            if not context.get("tx_hash"):
+                raise ServiceError(
+                    code=400,
+                    message="tx_hash is required",
+                )
+            tx_hash = context.get("tx_hash").strip()
             if not (
-                len(tx_hash) == 66
-                and tx_hash.startswith("0x")
-                and all(c in "0123456789abcdef" for c in tx_hash[2:])
+                    len(tx_hash) == 66
+                    and tx_hash.startswith("0x")
+                    and all(c in "0123456789abcdef" for c in tx_hash[2:])
             ):
-                raise InvalidArgument(argument="tx_hash", error="is invalid")
+                raise ServiceError(
+                    code=400,
+                    message="Invalid tx_hash",
+                )
 
             try:
                 is_solved = self._contract.is_solved(
                     contract_addr, self._config.solved_event, tx_hash
                 )
             except Exception as e:
-                raise TwirpServerException(
-                    code=errors.Errors.FailedPrecondition,
+                raise ServiceError(
+                    code=400,
                     message=str(e),
                 )
         else:
             is_solved = self._contract.is_solved(contract_addr)
 
         if not is_solved:
-            raise TwirpServerException(
-                code=errors.Errors.InvalidArgument,
-                message="you haven't solved this challenge",
+            raise ServiceError(
+                code=400,
+                message="It seems that you haven't solved this challenge~",
             )
 
-        context.get_logger().info(
+        logging.info(
             "Flag was captured in contract %s deployed by %s",
             contract_addr,
             account.address,
         )
 
-        flag: str = "flag{placeholder}"
-        try:
-            file = os.path.join(self._project_root, "flag.txt")
-            with open(file) as fp:
-                flag = fp.readline()
-        except FileNotFoundError:
-            context.get_logger().warn("flag file %s not found", file)
-        return challenge_pb2.Flag(flag=flag)
+        flag = os.environ.get("FLAG", 'flag not found, please contact admin')
+        return {
+            'flag': flag,
+        }
 
-    def GetSourceCode(self, context, token):
-        return challenge_pb2.SourceCode(source=self._source_code)
+    def GetSourceCode(self):
+        return {
+            'source': self._source_code,
+        }
 
     def _load_challenge_source(self, artifact_path) -> Dict[str, str]:
         source: Dict[str, str] = {}
@@ -174,31 +191,32 @@ class ChallengeService:
 
         return source
 
-    def _recoverAcctFromCtx(self, context) -> Account:
-        header = context.get(ctxkeys.RAW_HEADERS)
-        token = header.get(AUTHORIZATION_KEY)
+    def _recoverAcctFromCtx(self, session) -> Account:
+        token = session.get('token')
         if not token:
-            raise RequiredArgument(argument="authorization")
+            raise ServiceError(
+                code=401,
+                message="token is required",
+            )
 
         try:
             decoded_token: Token = pyseto.decode(self._token_key, token.strip())
         except Exception as e:
-            raise TwirpServerException(
-                code=errors.Errors.Unauthenticated, message=str(e)
+            raise ServiceError(
+                code=401,
+                message=str(e),
             )
 
-        if self._config.contract != decoded_token.footer.decode("utf-8"):  # type: ignore[union-attr]
-            raise TwirpServerException(
-                code=errors.Errors.Unauthenticated,
-                message="token was not issued by this challenge",
+        if self._config.contract != decoded_token.footer.decode("utf-8"):
+            raise ServiceError(
+                code=401,
+                message="invalid token",
             )
 
-        return Account(decoded_token.payload.decode("utf-8"))  # type: ignore[union-attr]
+        return Account(decoded_token.payload.decode("utf-8"))
 
 
-def create_asgi_application(project_root: str) -> TwirpASGIApp:
+def getService(project_root: str):
     config = parse_config(os.path.join(project_root, "challenge.yml"))
-    application = TwirpASGIApp()
     service = ChallengeService(project_root, config)
-    application.add_service(challenge_twirp.ChallengeServer(service=service))
-    return application
+    return service

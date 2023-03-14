@@ -16,7 +16,7 @@ contract Greeter {
     }
 
     function isSolved() public view returns (bool) {
-        string memory expected = "HelloChainFlag";
+        string memory expected = "HelloSLCTF";
         return keccak256(abi.encodePacked(expected)) == keccak256(abi.encodePacked(greeting));
     }
 }

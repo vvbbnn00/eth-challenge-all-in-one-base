@@ -1,4 +1,4 @@
 **/__pycache__
 **/*.py[cod]
-example/.env
-example/docker-compose.yml
+challenge/.env
+challenge/docker-compose.yml
